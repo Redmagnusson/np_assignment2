@@ -182,11 +182,11 @@ int main(int argc, char *argv[]){
 
 
   //Read server message 
-  if(recvfrom(socket_desc, (struct calcProtocol*)&calc_protocol, sizeof(calcProtocol), 0, 
+  if(recvfrom(socket_desc, (struct calcProtocol*)&calc_message, sizeof(calcMessage), 0, 
   	(struct sockaddr*)&server_addr, &server_struct_length) < 0){
   		printf("Failed to read msg. Errno: %s\n", strerror(errno));
 		exit(-1);
   
   }
-  else printf("Sever Responded: %d\n", ntohs(calc_protocol.type));
+  else printf("Server Responded: %d\n", ntohs(calc_message.type));
 }
