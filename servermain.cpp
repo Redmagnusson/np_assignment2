@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <cerrno>
+#include <sys/time.h>
 // Included to get the support library
 #include <calcLib.h>
 
@@ -47,51 +48,90 @@ int main(int argc, char *argv[]){
   char *Destport=strtok(NULL,delim);
   int port=atoi(Destport);
   printf("Host %s, and Port %d.\n",Desthost,port);
-
-	int sockfd;
-	char buffer[1024];
-	struct sockaddr_in servaddr, clientaddr;
-	
-	//Create socket
-	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-		printf("Socket creation failed\n");
-		
-	}else printf("Socket created\n");
-	
-	socklen_t server_struct_length = sizeof(servaddr);
-	memset(&servaddr, 0, sizeof(servaddr));
-	memset(&clientaddr, 0, sizeof(clientaddr));
-	
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = INADDR_ANY;
-	servaddr.sin_port = htons(port);
-	
-	//Bind socket
-	if(bind(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
-		printf("Socket bind failed\n");
-		
-	}else printf("Socket bound\n");
-	
-	struct calcMessage calc_message;
-	struct calcProtocol calc_protocol;
-	
-	//Read msg
-  if(recvfrom(sockfd, (struct calcProtocol*)&calc_message, sizeof(calcMessage), 0, 
-  	(struct sockaddr*)&servaddr, &server_struct_length) < 0){
-  		printf("Failed to read msg. Errno: %s\n", strerror(errno));
-		exit(-1);
+  
+  int opt = true;
+  int master_socket, addrlen, new_socket, client_socket[5], max_clients = 5, activity, i, valread, sd;
+  int max_sd;
+  struct sockaddr_in address;
+  
+  char buffer[1025];
+  fd_set readfds;
+  
+  for(int i = 0;i<max_clients;i++){
+  	client_socket[i] = 0;
+  }
+  
+  if((master_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0){
+  	printf("Failed to create socket\n");
+  	exit(-1);
+  }
+  
+  if(setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt))<0){
+  	printf("Failed to change socket options\n");
+  	exit(-1);
+  }
+  
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = INADDR_ANY;
+  address.sin_port = htons(port);
+  
+  if(bind(master_socket, (struct sockaddr*)&address, sizeof(address))< 0){
+  	printf("Failed to bind\n");
+  	exit(-1);
+  }
+  else printf("Socket bound\n");
+ 
+  
+  addrlen = sizeof(address);
+  printf("?\n");
+  while(true){
+  	
+  	FD_ZERO(&readfds);
+  	
+  	FD_SET(master_socket, &readfds);
+  	max_sd = master_socket;
+  	
+  	for(int i = 0;i< max_clients;i++){
+  		sd = client_socket[i];
+  		
+  		if(sd>0){
+  			FD_SET(sd, &readfds);
+  		}
+  		
+  		if(sd > max_sd){
+  			max_sd = sd;
+  		}
+  	
+  	}
+  	
+  	activity = select(max_sd +1, &readfds, NULL, NULL, NULL);
+  	
+  	if((activity < 0) && (errno!=EINTR)){
+  		printf("Select error\n");
+  	 }
+  	 
+  	 if(FD_ISSET(master_socket, &readfds)){
+  	 	if((new_socket = accept(master_socket, (struct sockaddr*)&address, (socklen_t*)&addrlen))<0){
+  	 		printf("Failed accept\n");
+  	 	}
+  	 	
+  	 	//Recv initial msg?
+  	 	
+  	 	
+  	 	for(int i=0;i<max_clients;i++){
+  	 		if(client_socket[i] == 0){
+  	 			client_socket[i] = new_socket;
+  	 		}
+  	 	}
+  	 }
+  	 
+  	 for(int i = 0;i<max_clients;i++){
+  	 
+  	 	sd = client_socket[i];
+  	 }
   
   }
-  else printf("Client Responded: %d\n", ntohs(calc_message.type));
-	
-	//Check full message to be correct
-	
-	//TODO Timeout 10s
-	
-	//If lost client attempts to send msg, reject
-	
-	//Wrong ID = reject, track client IP, port, ID and assignment
-		
+  	
 		
   /* 
      Prepare to setup a reoccurring event every 10s. If it_interval, or it_value is omitted, it will be a single alarm 10s after it has been set. 

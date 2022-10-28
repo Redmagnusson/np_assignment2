@@ -8,7 +8,7 @@
 #include <time.h>
 #include "protocol.h"
 #include <errno.h>
-
+#include <netdb.h>
 #define DEBUG
 
 void calculate(struct calcProtocol &proto){
@@ -16,12 +16,16 @@ void calculate(struct calcProtocol &proto){
 	int iValue1, iValue2, iResult, arith;
 	float fResult, fValue1, fValue2;
 	proto.type = htons(2);
+	proto.major_version = htons(1);
+	proto.minor_version = htons(0);
 	arith = ntohl(proto.arith);
 	iValue1 = ntohl(proto.inValue1); iValue2 = ntohl(proto.inValue2);
 	fValue1 = proto.flValue1; fValue2 = proto.flValue2;
 	if(arith == 1){
 		printf("ASSIGNMENT: Add %d %d\n", iValue1, iValue2);
 		iResult = iValue1 + iValue2;
+		proto.inValue1 = htonl(iValue1);
+		proto.inValue2 = htonl(iValue2);
 		proto.inResult = htonl(iResult);
 		//char* answer = (char*)malloc(5);
 		//sprintf(answer, "%d\n", iResult);
@@ -30,28 +34,38 @@ void calculate(struct calcProtocol &proto){
 	else if (arith == 2){
 		printf("ASSIGNMENT: Sub %d %d\n", iValue1, iValue2);
 		iResult = iValue1 - iValue2;
-		char* answer = (char*)malloc(5);
-		sprintf(answer, "%d\n", iResult);
+		proto.inValue1 = htonl(iValue1);
+		proto.inValue2 = htonl(iValue2);
+		proto.inResult = htonl(iResult);
+		//char* answer = (char*)malloc(5);
+		//sprintf(answer, "%d\n", iResult);
 		//return answer;
 	}
 	else if (arith == 3){
 		printf("ASSIGNMENT: Mul %d %d\n", iValue1, iValue2);
 		iResult = iValue1 * iValue2;
-		char* answer = (char*)malloc(5);
-		sprintf(answer, "%d\n", iResult);
+		proto.inValue1 = htonl(iValue1);
+		proto.inValue2 = htonl(iValue2);
+		proto.inResult = htonl(iResult);
+		//char* answer = (char*)malloc(5);
+		//sprintf(answer, "%d\n", iResult);
 		//return answer;
 	}
 	else if (arith == 4){
 		printf("ASSIGNMENT: Div %d %d\n", iValue1, iValue2);
 		iResult = iValue1 / iValue2;
-		char* answer = (char*)malloc(5);
-		sprintf(answer, "%d\n", iResult);
+		proto.inValue1 = htonl(iValue1);
+		proto.inValue2 = htonl(iValue2);
+		proto.inResult = htonl(iResult);
+		//char* answer = (char*)malloc(5);
+		//sprintf(answer, "%d\n", iResult);
 		//return answer;
 	}
 	
 	else if (arith == 5){
 		printf("ASSIGNMENT: fAdd %8.8g %8.8g\n", fValue1, fValue2);
 		fResult = fValue1 + fValue2;
+		proto.flResult = fResult;
 		char* answer = (char*)malloc(5);
 		sprintf(answer, "%8.8g\n", fResult);
 		//return answer;
@@ -59,20 +73,23 @@ void calculate(struct calcProtocol &proto){
 	else if (arith == 6){
 		printf("ASSIGNMENT: fSub %8.8g %8.8g\n", fValue1, fValue2);
 		fResult = fValue1 - fValue2;
-		char* answer = (char*)malloc(5);
-		sprintf(answer, "%8.8g\n", fResult);
+		proto.flResult = fResult;
+		//char* answer = (char*)malloc(5);
+		//sprintf(answer, "%8.8g\n", fResult);
 		//return answer;
 	}
 	else if (arith == 7){
 		printf("ASSIGNMENT: fMul %8.8g %8.8g\n", fValue1, fValue2);
 		fResult = fValue1 * fValue2;
+		proto.flResult = fResult;
 		char* answer = (char*)malloc(5);
 		sprintf(answer, "%8.8g\n", fResult);
 		//return answer;
 	}
-	else if (arith == 4){
+	else if (arith == 8){
 		printf("ASSIGNMENT: fDiv %8.8g %8.8g\n", fValue1, fValue2);
 		fResult = fValue1 / fValue2;
+		proto.flResult = fResult;
 		char* answer = (char*)malloc(5);
 		sprintf(answer, "%8.8g\n", fResult);
 		//return answer;
@@ -84,6 +101,7 @@ void calculate(struct calcProtocol &proto){
 void restructure(struct calcProtocol &proto){
 	//Convert everything then convert it back
 	//Print for test?
+
 	proto.type = htons(ntohs(proto.type));
 	proto.major_version = htons(ntohs(proto.major_version));
 	proto.minor_version = htons(ntohs(proto.minor_version));
@@ -94,21 +112,51 @@ void restructure(struct calcProtocol &proto){
 	proto.inResult = htonl(ntohl(proto.inResult));
 
 }
+int CAP = 2000;
 int main(int argc, char *argv[]){
   
-  char delim[]=":";
-  char *Desthost=strtok(argv[1],delim);
-  char *Destport=strtok(NULL,delim);
-  int port=atoi(Destport);
-  char* server_message[2000];
-  printf("Host %s, and Port %d.\n",Desthost,port);
+  //Variables
+	char* splits[CAP];
+  char* p = strtok(argv[1], ":");
+  int delimCounter = 0;
+  char *Desthost;
+  char *Destport;
+  int port;
+	int serverfd;
+	struct sockaddr_in client;
+	char server_message[CAP];
+  //Get argv
+  while(p != NULL){
+  	//Look for the amount of ":" in argv to determine if ipv4 or ipv6
+  	splits[delimCounter++] = p;
+  	p = strtok(NULL, ":");
+  }
+  Destport = splits[--delimCounter];
+  Desthost = splits[0];
+  for(int i = 1;i<delimCounter;i++){
+  	
+  	sprintf(Desthost, "%s:%s",Desthost, splits[i]);
+  }
+  port=atoi(Destport);
+  printf("Host %s and port %d.\n",Desthost,port);
+	
+	//Getaddrinfo
+	struct addrinfo hints, *serverinfo = 0;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	
+	if(getaddrinfo(Desthost, Destport, &hints, &serverinfo) < 0){
+		printf("Getaddrinfo error: %s\n", strerror(errno)); 
+		exit(0);
+	} //else printf("Getaddrinfo success\n");
 
 
   //Create UDP socket
   int socket_desc;
   struct sockaddr_in server_addr;
-  socket_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  socklen_t server_struct_length = sizeof(server_addr);
+  socket_desc = socket(serverinfo->ai_family, serverinfo->ai_socktype, serverinfo->ai_protocol);
+  socklen_t server_struct_length = sizeof(serverinfo);
   if(socket_desc < 0){
   	#ifdef DEBUG
   	printf("Unable to create socket\n");
@@ -119,11 +167,7 @@ int main(int argc, char *argv[]){
   else printf("Socket Created\n");
   #endif
   
-  
-  //struct calcMessage{
-  //	int type, message, protocol, major_version, minor_version;
-  //};
-  
+ 
   struct calcMessage calc_message;
   calc_message.type = htons(22);
   calc_message.message = htonl(0);
@@ -134,9 +178,9 @@ int main(int argc, char *argv[]){
   struct calcProtocol calc_protocol;
   
   //Create Socket Structure
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(port);
-  server_addr.sin_addr.s_addr = inet_addr(Desthost);
+  //server_addr.sin_family = AF_INET;
+  //server_addr.sin_port = htons(port);
+  //server_addr.sin_addr.s_addr = inet_addr(Desthost);
   int error;
 
   
@@ -146,16 +190,17 @@ int main(int argc, char *argv[]){
   
   //Send to
   if(result = sendto(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0,
-  	(struct sockaddr*)&server_addr, sizeof(server_addr)) < 0){
+  	serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
   		printf("Failed to send message\n");
   		}
   else printf("Message sent\n");
  
   //printf("Chars sent: %d \n", result);
   
+  int n;
   //Read server message 
-  if(recvfrom(socket_desc, (struct calcProtocol*)&calc_protocol, sizeof(calcProtocol), 0, 
-  	(struct sockaddr*)&server_addr, &server_struct_length) < 0){
+  if(recvfrom(socket_desc, &calc_protocol, sizeof(calc_protocol), 0, 
+  	serverinfo->ai_addr, &serverinfo->ai_addrlen) < 0){
   		printf("Failed to read msg. Errno: %s\n", strerror(errno));
 		exit(-1);
   
@@ -166,27 +211,34 @@ int main(int argc, char *argv[]){
   		exit(-1);
   	}
   }
-  restructure(calc_protocol);
+  //printf("Server: %s\n", server_message);
+  //restructure(calc_protocol);
   
   char* answer = (char*)malloc(5);
   float calc;
+      printf("Type: %d\nMajor: %d\nMinor: %d\nID: %d\nArith: %d\nInt1: %d\nInt2: %d\nintResult: %d\nF1: %8.8g\nF2: %8.8g\nfResult: %8.8g\n", ntohs(calc_protocol.type), ntohs(calc_protocol.major_version), ntohs(calc_protocol.minor_version), ntohl(calc_protocol.id),  ntohl(calc_protocol.arith), ntohl(calc_protocol.inValue1), ntohl(calc_protocol.inValue2), ntohl(calc_protocol.inResult), calc_protocol.flValue1, calc_protocol.flValue2, calc_protocol.flResult);
+      
+      printf("-------------------AFTER-----------------------------------------------------\n");
+
   calculate(calc_protocol);
-  
-  
+  //calc_protocol.type = 2;
+      printf("Type: %d\nMajor: %d\nMinor: %d\nID: %d\nArith: %d\nInt1: %d\nInt2: %d\nintResult: %d\nF1: %8.8g\nF2: %8.8g\nfResult: %8.8g\n", ntohs(calc_protocol.type), ntohs(calc_protocol.major_version), ntohs(calc_protocol.minor_version), ntohl(calc_protocol.id),  ntohl(calc_protocol.arith), ntohl(calc_protocol.inValue1), ntohl(calc_protocol.inValue2), ntohl(calc_protocol.inResult), calc_protocol.flValue1, calc_protocol.flValue2, calc_protocol.flResult);
+
   //Send to
   if(result = sendto(socket_desc, (struct calcProtocol*)&calc_protocol, sizeof(calcProtocol), 0,
-  	(struct sockaddr*)&server_addr, sizeof(server_addr)) < 0){
+  	serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
   		printf("Failed to send message\n");
   		}
   else printf("Message sent\n");
 
 
   //Read server message 
-  if(recvfrom(socket_desc, (struct calcProtocol*)&calc_message, sizeof(calcMessage), 0, 
-  	(struct sockaddr*)&server_addr, &server_struct_length) < 0){
+  memset(&calc_message, 0, sizeof(calcMessage));
+  if(recvfrom(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0, 
+  	serverinfo->ai_addr, &serverinfo->ai_addrlen) < 0){
   		printf("Failed to read msg. Errno: %s\n", strerror(errno));
 		exit(-1);
   
   }
-  else printf("Server Responded: %d\n", ntohs(calc_message.type));
+  else printf("Server Responded: %d\n", ntohl(calc_message.message));
 }
