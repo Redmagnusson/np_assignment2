@@ -9,6 +9,7 @@
 #include "protocol.h"
 #include <errno.h>
 #include <netdb.h>
+#include <unistd.h>
 #define DEBUG
 
 void calculate(struct calcProtocol &proto){
@@ -216,16 +217,20 @@ int main(int argc, char *argv[]){
   
   char* answer = (char*)malloc(5);
   float calc;
+  #ifdef DEBUG
       printf("Type: %d\nMajor: %d\nMinor: %d\nID: %d\nArith: %d\nInt1: %d\nInt2: %d\nintResult: %d\nF1: %8.8g\nF2: %8.8g\nfResult: %8.8g\n", ntohs(calc_protocol.type), ntohs(calc_protocol.major_version), ntohs(calc_protocol.minor_version), ntohl(calc_protocol.id),  ntohl(calc_protocol.arith), ntohl(calc_protocol.inValue1), ntohl(calc_protocol.inValue2), ntohl(calc_protocol.inResult), calc_protocol.flValue1, calc_protocol.flValue2, calc_protocol.flResult);
       
       printf("-------------------AFTER-----------------------------------------------------\n");
-
+#endif
   calculate(calc_protocol);
   //calc_protocol.type = 2;
+  #ifdef DEBUG
       printf("Type: %d\nMajor: %d\nMinor: %d\nID: %d\nArith: %d\nInt1: %d\nInt2: %d\nintResult: %d\nF1: %8.8g\nF2: %8.8g\nfResult: %8.8g\n", ntohs(calc_protocol.type), ntohs(calc_protocol.major_version), ntohs(calc_protocol.minor_version), ntohl(calc_protocol.id),  ntohl(calc_protocol.arith), ntohl(calc_protocol.inValue1), ntohl(calc_protocol.inValue2), ntohl(calc_protocol.inResult), calc_protocol.flValue1, calc_protocol.flValue2, calc_protocol.flResult);
+#endif
 
+//sleep(11);
   //Send to
-  if(result = sendto(socket_desc, (struct calcProtocol*)&calc_protocol, sizeof(calcProtocol), 0,
+  if(sendto(socket_desc, (struct calcProtocol*)&calc_protocol, sizeof(calcProtocol), 0,
   	serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
   		printf("Failed to send message\n");
   		}
