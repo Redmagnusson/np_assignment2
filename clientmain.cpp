@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <unistd.h>
-#define DEBUG
+//#define DEBUG
 
 void calculate(struct calcProtocol &proto){
 
@@ -192,9 +192,11 @@ int main(int argc, char *argv[]){
   //Send to
   if(result = sendto(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0,
   	serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
+  	#ifdef DEBUG
   		printf("Failed to send message\n");
+  		#endif
   		}
-  else printf("Message sent\n");
+  else //printf("Message sent\n");
  
   //printf("Chars sent: %d \n", result);
   
@@ -202,7 +204,9 @@ int main(int argc, char *argv[]){
   //Read server message 
   if(recvfrom(socket_desc, &calc_protocol, sizeof(calc_protocol), 0, 
   	serverinfo->ai_addr, &serverinfo->ai_addrlen) < 0){
+  	#ifdef DEBUG
   		printf("Failed to read msg. Errno: %s\n", strerror(errno));
+  		#endif
 		exit(-1);
   
   }
@@ -232,18 +236,26 @@ int main(int argc, char *argv[]){
   //Send to
   if(sendto(socket_desc, (struct calcProtocol*)&calc_protocol, sizeof(calcProtocol), 0,
   	serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
+  	#ifdef DEBUG
   		printf("Failed to send message\n");
+  		#endif
   		}
-  else printf("Message sent\n");
+  else //printf("Message sent\n");
 
 
   //Read server message 
   memset(&calc_message, 0, sizeof(calcMessage));
   if(recvfrom(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0, 
   	serverinfo->ai_addr, &serverinfo->ai_addrlen) < 0){
+  	#ifdef DEBUG
   		printf("Failed to read msg. Errno: %s\n", strerror(errno));
+  		#endif
 		exit(-1);
   
   }
-  else printf("Server Responded: %d\n", ntohl(calc_message.message));
+  //else printf("Server Responded: %d\n", ntohl(calc_message.message));
+  if(ntohl(calc_message.message) == 1){
+  	printf("OK!\n");
+  }
+  else printf("ERROR\n");
 }
