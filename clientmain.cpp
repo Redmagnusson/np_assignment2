@@ -126,6 +126,12 @@ int main(int argc, char *argv[]){
 	int serverfd;
 	struct sockaddr_in client;
 	char server_message[CAP];
+	struct timeval tv;
+	tv.tv_sec = 0;
+	tv.tv_usec = 200000;
+	
+	
+	
   //Get argv
   while(p != NULL){
   	//Look for the amount of ":" in argv to determine if ipv4 or ipv6
@@ -168,6 +174,11 @@ int main(int argc, char *argv[]){
   else printf("Socket Created\n");
   #endif
   
+  if(setsockopt(socket_desc, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+  	#ifdef DEBUG
+  	printf("Socket option failed: %s\n", strerror(errno));
+  	#endif
+  }
  
   struct calcMessage calc_message;
   calc_message.type = htons(22);
@@ -184,38 +195,52 @@ int main(int argc, char *argv[]){
   //server_addr.sin_addr.s_addr = inet_addr(Desthost);
   int error;
 
-  
-  //int msec = 0, trigger = 2000, iterations = 0;
-  //clock_t before = clock();
+ 
   int result;
   
-  //Send to
-  if(result = sendto(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0,
-  	serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
-  	#ifdef DEBUG
+
+  
+  int n = 0;
+  int interval = 0;
+  //Read server message 
+
+	while(true){
+	if(n == 0){
+  	//Send to
+  	if(result = sendto(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0,
+  			serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
+  		#ifdef DEBUG
   		printf("Failed to send message\n");
   		#endif
-  		}
-  else //printf("Message sent\n");
- 
-  //printf("Chars sent: %d \n", result);
-  
-  int n;
-  //Read server message 
-  if(recvfrom(socket_desc, &calc_protocol, sizeof(calc_protocol), 0, 
-  	serverinfo->ai_addr, &serverinfo->ai_addrlen) < 0){
+  	}
+  	else printf("Message sent\n");
+  	
+  	n = recvfrom(socket_desc, &calc_protocol, sizeof(calc_protocol), 0, 
+  		serverinfo->ai_addr, &serverinfo->ai_addrlen);
+  	}
+  	if(n > 0){
+  		break;
+  	}
+  	else if( n < 0){
   	#ifdef DEBUG
   		printf("Failed to read msg. Errno: %s\n", strerror(errno));
   		#endif
 		exit(-1);
   
-  }
-  else{
-  	if(ntohs(calc_protocol.type) == 2){
-  		printf("Server sent NOT OK. Exiting...\n");
+  	}
+  	else if(interval >= 3){
+  		printf("Msg send failed 3 times. Exiting...\n");
   		exit(-1);
   	}
-  }
+  	else{
+  		if(ntohs(calc_protocol.type) == 2){
+  		printf("Server sent NOT OK. Exiting...\n");
+  		exit(-1);
+  		}
+  	}	
+  	interval++;
+	}
+  
   //printf("Server: %s\n", server_message);
   //restructure(calc_protocol);
   
@@ -233,26 +258,41 @@ int main(int argc, char *argv[]){
 #endif
 
 //sleep(11);
-  //Send to
-  if(sendto(socket_desc, (struct calcProtocol*)&calc_protocol, sizeof(calcProtocol), 0,
-  	serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
-  	#ifdef DEBUG
+	interval = 0;
+	n = 0;
+	while(true){
+	  //Send to
+  	if(sendto(socket_desc, (struct calcProtocol*)&calc_protocol, sizeof(calcProtocol), 0,
+  		serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
+  		#ifdef DEBUG
   		printf("Failed to send message\n");
   		#endif
   		}
-  else //printf("Message sent\n");
+  	else //printf("Message sent\n");
 
 
   //Read server message 
   memset(&calc_message, 0, sizeof(calcMessage));
-  if(recvfrom(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0, 
-  	serverinfo->ai_addr, &serverinfo->ai_addrlen) < 0){
+  n = recvfrom(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0, 
+  	serverinfo->ai_addr, &serverinfo->ai_addrlen);
+  if(n < 0){
   	#ifdef DEBUG
   		printf("Failed to read msg. Errno: %s\n", strerror(errno));
   		#endif
 		exit(-1);
-  
   }
+  else if(n > 0){
+  	break;
+  }
+   else if(interval >= 3){
+  		printf("Msg send failed 3 times. Exiting...\n");
+  		exit(-1);
+  	}
+  
+		interval++;
+	}
+
+
   //else printf("Server Responded: %d\n", ntohl(calc_message.message));
   if(ntohl(calc_message.message) == 1){
   	printf("OK!\n");
