@@ -301,6 +301,7 @@ int main(int argc, char *argv[]){
   	}
   
   //If calcmsg add to list
+
  	 if(n <= 12){
    	 n = recvfrom(sockfd, (struct calcMessage*)&clientMessage, sizeof(calcMessage), 0, (struct sockaddr*)&client, (socklen_t*)&len);
   		if(n < 0){
@@ -314,6 +315,7 @@ int main(int argc, char *argv[]){
   			#endif
   		}
   	
+  		
   		//Check valid calcMessage
   		//Convert clientmessage from network byte order
   		clientMessage.type = ntohs(clientMessage.type);

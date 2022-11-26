@@ -127,8 +127,8 @@ int main(int argc, char *argv[]){
 	struct sockaddr_in client;
 	char server_message[CAP];
 	struct timeval tv;
-	tv.tv_sec = 0;
-	tv.tv_usec = 200000;
+	tv.tv_sec = 2;
+	tv.tv_usec = 0;
 	
 	
 	
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]){
   //Read server message 
 
 	while(true){
-	if(n == 0){
+	
   	//Send to
   	if(result = sendto(socket_desc, (struct calcMessage*)&calc_message, sizeof(calcMessage), 0,
   			serverinfo->ai_addr, serverinfo->ai_addrlen) < 0){
@@ -213,22 +213,25 @@ int main(int argc, char *argv[]){
   		printf("Failed to send message\n");
   		#endif
   	}
-  	else printf("Message sent\n");
+  	else {
+  		printf("Message sent\n");
+  		interval++;
+  	}
   	
   	n = recvfrom(socket_desc, &calc_protocol, sizeof(calc_protocol), 0, 
   		serverinfo->ai_addr, &serverinfo->ai_addrlen);
-  	}
+  	
   	if(n > 0){
   		break;
   	}
   	else if( n < 0){
   	#ifdef DEBUG
-  		printf("Failed to read msg. Errno: %s\n", strerror(errno));
+  		//printf("Failed to read msg. Errno: %s\n", strerror(errno));
   		#endif
-		exit(-1);
+			//exit(-1);
   
   	}
-  	else if(interval >= 3){
+  	if(interval >= 3){
   		printf("Msg send failed 3 times. Exiting...\n");
   		exit(-1);
   	}
@@ -238,24 +241,15 @@ int main(int argc, char *argv[]){
   		exit(-1);
   		}
   	}	
-  	interval++;
+  	printf("Msg send failed %d times. Trying again...\n", interval);
 	}
   
   //printf("Server: %s\n", server_message);
-  //restructure(calc_protocol);
   
   char* answer = (char*)malloc(5);
   float calc;
-  #ifdef DEBUG
-      printf("Type: %d\nMajor: %d\nMinor: %d\nID: %d\nArith: %d\nInt1: %d\nInt2: %d\nintResult: %d\nF1: %8.8g\nF2: %8.8g\nfResult: %8.8g\n", ntohs(calc_protocol.type), ntohs(calc_protocol.major_version), ntohs(calc_protocol.minor_version), ntohl(calc_protocol.id),  ntohl(calc_protocol.arith), ntohl(calc_protocol.inValue1), ntohl(calc_protocol.inValue2), ntohl(calc_protocol.inResult), calc_protocol.flValue1, calc_protocol.flValue2, calc_protocol.flResult);
-      
-      printf("-------------------AFTER-----------------------------------------------------\n");
-#endif
   calculate(calc_protocol);
-  //calc_protocol.type = 2;
-  #ifdef DEBUG
-      printf("Type: %d\nMajor: %d\nMinor: %d\nID: %d\nArith: %d\nInt1: %d\nInt2: %d\nintResult: %d\nF1: %8.8g\nF2: %8.8g\nfResult: %8.8g\n", ntohs(calc_protocol.type), ntohs(calc_protocol.major_version), ntohs(calc_protocol.minor_version), ntohl(calc_protocol.id),  ntohl(calc_protocol.arith), ntohl(calc_protocol.inValue1), ntohl(calc_protocol.inValue2), ntohl(calc_protocol.inResult), calc_protocol.flValue1, calc_protocol.flValue2, calc_protocol.flResult);
-#endif
+
 
 //sleep(11);
 	interval = 0;
@@ -268,8 +262,10 @@ int main(int argc, char *argv[]){
   		printf("Failed to send message\n");
   		#endif
   		}
-  	else //printf("Message sent\n");
-
+  	else{
+  		//printf("Message sent\n");
+  		interval++;
+		}
 
   //Read server message 
   memset(&calc_message, 0, sizeof(calcMessage));
@@ -279,17 +275,18 @@ int main(int argc, char *argv[]){
   	#ifdef DEBUG
   		printf("Failed to read msg. Errno: %s\n", strerror(errno));
   		#endif
-		exit(-1);
+		 //exit(-1);
   }
   else if(n > 0){
   	break;
   }
-   else if(interval >= 3){
+  if(interval >= 3){
   		printf("Msg send failed 3 times. Exiting...\n");
   		exit(-1);
   	}
   
-		interval++;
+		
+		printf("Msg send failed %d times. Trying again...\n", interval);
 	}
 
 
